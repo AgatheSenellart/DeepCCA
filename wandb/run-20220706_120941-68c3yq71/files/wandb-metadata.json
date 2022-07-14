@@ -1,0 +1,24 @@
+{
+    "os": "Linux-5.15.0-39-generic-x86_64-with-debian-bookworm-sid",
+    "python": "3.6.8",
+    "heartbeatAt": "2022-07-06T10:09:41.971162",
+    "startedAt": "2022-07-06T10:09:41.274223",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 3080 Laptop GPU",
+    "gpu_count": 1,
+    "cpu_count": 16,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "main_mnist_svhn.py",
+    "codePath": "main_mnist_svhn.py",
+    "git": {
+        "remote": "git@github.com:AgatheSenellart/DeepCCA.git",
+        "commit": "2fa648e444fa6ae9135c52cceee1b653cc1d44d0"
+    },
+    "email": "agathe.senellart@polytechnique.edu",
+    "root": "/home/agathe/Code/DCCA/DeepCCA",
+    "host": "agathe-Precision-7760",
+    "username": "agathe",
+    "executable": "/home/agathe/Code/miniconda3/envs/myenv/bin/python3"
+}

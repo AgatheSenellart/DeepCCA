@@ -3,7 +3,10 @@ from sklearn import svm
 from sklearn.metrics import accuracy_score
 import numpy as np
 import torch
-
+from umap import UMAP
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import math
 
 def load_data(data_file):
     """loads the data from the gzip pickled files, and converts to numpy arrays"""
@@ -25,6 +28,20 @@ def make_tensor(data_xy):
     data_x = torch.tensor(data_x)
     data_y = np.asarray(data_y, dtype='int32')
     return data_x, data_y
+
+def svm_classify_svhn(outputs_train, outputs_test, C):
+
+    mnist_data_t, svhn_data_t, labels_t = outputs_train
+    mnist_data_s, svhn_data_s, labels_s = outputs_test
+
+    print('training SVM...')
+    clf = svm.LinearSVC(C=C, dual=False)
+    clf.fit(svhn_data_t, labels_t)
+    p = clf.predict(svhn_data_s)
+    test_acc = accuracy_score(labels_s, p)
+
+    return test_acc
+
 
 
 def svm_classify(data, C):
@@ -64,3 +81,48 @@ def load_pickle(f):
         ret = thepickle.load(f)
 
     return ret
+
+def is_multidata(dataB):
+    return isinstance(dataB, list) or isinstance(dataB, tuple)
+
+
+def unpack_data(dataB, device='cuda'):
+    # dataB :: (Tensor, Idx) | [(Tensor, Idx)]
+    """ Unpacks the data batch object in an appropriate manner to extract data """
+    if is_multidata(dataB):
+        if torch.is_tensor(dataB[0]):
+            if torch.is_tensor(dataB[1]):
+                return dataB[0].to(device)  # mnist, svhn, cubI
+            elif is_multidata(dataB[1]):
+                return dataB[0].to(device), dataB[1][0].to(device)  # cubISft
+            else:
+                raise RuntimeError('Invalid data format {} -- check your dataloader!'.format(type(dataB[1])))
+
+        elif is_multidata(dataB[0]):
+            return [d.to(device) for d in list(zip(*dataB))[0]]  # mnist-svhn, cubIS
+        else:
+            raise RuntimeError('Invalid data format {} -- check your dataloader!'.format(type(dataB[0])))
+    elif torch.is_tensor(dataB):
+        return dataB.to(device)
+    else:
+        raise RuntimeError('Invalid data format {} -- check your dataloader!'.format(type(dataB)))
+
+
+def visualize_umap(z,classes):
+    z_embed = TSNE().fit_transform(z)
+
+    fig = plt.figure()
+    plt.scatter(z_embed[:,0], z_embed[:,1], c=classes)
+    return fig
+
+def save_encoders(model, path):
+
+    torch.save(model.model1.state_dict(),str(path)+'model1.pt')
+    torch.save(model.model2.state_dict(),str(path) + 'model2.pt')
+
+class Constants(object):
+    eta = 1e-6
+    log2 = math.log(2)
+    log2pi = math.log(2 * math.pi)
+    logceilc = 88  # largest cuda v s.t. exp(v) < inf
+    logfloorc = -104  # smallest cuda v s.t. exp(v) > 0

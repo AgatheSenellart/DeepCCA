@@ -5,6 +5,7 @@ from linear_cca import linear_cca
 from torch.utils.data import BatchSampler, SequentialSampler, RandomSampler
 from DeepCCAModels import DeepCCA
 from utils import load_data, svm_classify
+from dataloaders import MNIST_SVHN_DL
 import time
 import logging
 try:
@@ -15,13 +16,16 @@ except ImportError:
 import gzip
 import numpy as np
 import torch.nn as nn
+from tqdm import tqdm
 torch.set_default_tensor_type(torch.DoubleTensor)
 
 
 class Solver():
     def __init__(self, model, linear_cca, outdim_size, epoch_num, batch_size, learning_rate, reg_par, device=torch.device('cpu')):
-        self.model = nn.DataParallel(model)
+        self.model = model
+        print('coucou')
         self.model.to(device)
+        print('coucou2')
         self.epoch_num = epoch_num
         self.batch_size = batch_size
         self.loss = model.loss
@@ -33,17 +37,18 @@ class Solver():
 
         self.outdim_size = outdim_size
 
-        formatter = logging.Formatter(
-            "[ %(levelname)s : %(asctime)s ] - %(message)s")
-        logging.basicConfig(
-            level=logging.DEBUG, format="[ %(levelname)s : %(asctime)s ] - %(message)s")
-        self.logger = logging.getLogger("Pytorch")
-        fh = logging.FileHandler("DCCA.log")
-        fh.setFormatter(formatter)
-        self.logger.addHandler(fh)
-
-        self.logger.info(self.model)
-        self.logger.info(self.optimizer)
+        # formatter = logging.Formatter(
+        #     "[ %(levelname)s : %(asctime)s ] - %(message)s")
+        # logging.basicConfig(
+        #     level=logging.DEBUG, format="[ %(levelname)s : %(asctime)s ] - %(message)s")
+        # self.logger = logging.getLogger("Pytorch")
+        # fh = logging.FileHandler("DCCA.log")
+        # fh.setFormatter(formatter)
+        # self.logger.addHandler(fh)
+        #
+        # self.logger.info(self.model)
+        # self.logger.info(self.optimizer)
+        print('Solver initialized')
 
     def fit(self, x1, x2, vx1=None, vx2=None, tx1=None, tx2=None, checkpoint='checkpoint.model'):
         """
@@ -52,21 +57,22 @@ class Solver():
         dim=[batch_size, feats]
 
         """
-        x1.to(self.device)
-        x2.to(self.device)
+        print('Starting to optimization')
+        x1 = x1.to(self.device)
+        x2 = x2.to(self.device)
 
         data_size = x1.size(0)
 
         if vx1 is not None and vx2 is not None:
             best_val_loss = 0
-            vx1.to(self.device)
-            vx2.to(self.device)
+            vx1 = vx1.to(self.device)
+            vx2 = vx2.to(self.device)
         if tx1 is not None and tx2 is not None:
-            tx1.to(self.device)
-            tx2.to(self.device)
+            tx1 = tx1.to(self.device)
+            tx2 = tx2.to(self.device)
 
         train_losses = []
-        for epoch in range(self.epoch_num):
+        for epoch in tqdm(range(self.epoch_num)):
             epoch_start_time = time.time()
             self.model.train()
             batch_idxs = list(BatchSampler(RandomSampler(
@@ -89,18 +95,18 @@ class Solver():
                     val_loss = self.test(vx1, vx2)
                     info_string += " - val_loss: {:.4f}".format(val_loss)
                     if val_loss < best_val_loss:
-                        self.logger.info(
+                        print(
                             "Epoch {:d}: val_loss improved from {:.4f} to {:.4f}, saving model to {}".format(epoch + 1, best_val_loss, val_loss, checkpoint))
                         best_val_loss = val_loss
                         torch.save(self.model.state_dict(), checkpoint)
                     else:
-                        self.logger.info("Epoch {:d}: val_loss did not improve from {:.4f}".format(
+                        print("Epoch {:d}: val_loss did not improve from {:.4f}".format(
                             epoch + 1, best_val_loss))
             else:
                 torch.save(self.model.state_dict(), checkpoint)
             epoch_time = time.time() - epoch_start_time
-            self.logger.info(info_string.format(
-                epoch + 1, self.epoch_num, epoch_time, train_loss))
+            print((info_string.format(
+                epoch + 1, self.epoch_num, epoch_time, train_loss)))
         # train_linear_cca
         if self.linear_cca is not None:
             _, outputs = self._get_outputs(x1, x2)
@@ -110,11 +116,11 @@ class Solver():
         self.model.load_state_dict(checkpoint_)
         if vx1 is not None and vx2 is not None:
             loss = self.test(vx1, vx2)
-            self.logger.info("loss on validation data: {:.4f}".format(loss))
+            print("loss on validation data: {:.4f}".format(loss))
 
         if tx1 is not None and tx2 is not None:
             loss = self.test(tx1, tx2)
-            self.logger.info('loss on test data: {:.4f}'.format(loss))
+            print('loss on test data: {:.4f}'.format(loss))
 
     def test(self, x1, x2, use_linear_cca=False):
         with torch.no_grad():
@@ -140,8 +146,8 @@ class Solver():
             outputs1 = []
             outputs2 = []
             for batch_idx in batch_idxs:
-                batch_x1 = x1[batch_idx, :]
-                batch_x2 = x2[batch_idx, :]
+                batch_x1 = x1[batch_idx, :].to(self.device)
+                batch_x2 = x2[batch_idx, :].to(self.device)
                 o1, o2 = self.model(batch_x1, batch_x2)
                 outputs1.append(o1)
                 outputs2.append(o2)
@@ -153,6 +159,9 @@ class Solver():
 
 
 if __name__ == '__main__':
+
+    print(torch.cuda.is_available())
+
     ############
     # Parameters Section
 
@@ -175,7 +184,7 @@ if __name__ == '__main__':
 
     # the parameters for training the network
     learning_rate = 1e-3
-    epoch_num = 1
+    epoch_num = 5
     batch_size = 800
 
     # the regularization parameter of the network
