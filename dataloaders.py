@@ -33,7 +33,7 @@ class MNIST_FASHION_DATALOADER():
         self.data_path = data_path
 
     def getDataLoaders(self, batch_size, shuffle=True, device='cuda', transform=None):
-        print(self.data_path)
+        print('Retrieving data from ', self.data_path)
         if not (os.path.exists(self.data_path + 'train-ms-mnist-idx.pt')
                 and os.path.exists(self.data_path + 'train-ms-fashion-idx.pt')
                 and os.path.exists(self.data_path + 'test-ms-mnist-idx.pt')
